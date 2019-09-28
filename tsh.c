@@ -205,19 +205,20 @@ void eval(char *cmdline)
         if(pipe_no){
             //printf("debug: %d\n",pipe_no);
             //the pipe
-            int pipe_fd[2];
-            // if pipe cannot be initialized
-            if (pipe(pipe_fd) < 0) {
-                printf("pipe() fails: %s\n", strerror(errno));
-                exit(0);
-            }
+            int * pipe_fd[2];
+
             
             for(int p=0; p<=pipe_no-1;p++){
+                // if pipe cannot be initialized
+                if (pipe(pipe_fd[p]) < 0) {
+                    printf("pipe() fails: %s\n", strerror(errno));
+                    exit(0);
+                }
                 //get the command before the pipe operator
                 char ** argv1 = malloc(sizeof(char *)*pipe_no);
                 int i;
                 if(p!=0){
-                    i=index[p]+1;
+                    i=index[p-1]+1;
                 }else{
                     i =0;
                 }
@@ -232,54 +233,28 @@ void eval(char *cmdline)
                     }
                 }
                 argv1[k] = NULL;
-                printf("debug1:%s\n", argv1[0]);
+                
 
                 if((pid = fork()) == 0) {
                 setpgid(0, 0);                       //put the child in a new process group
                     sigprocmask(SIG_UNBLOCK, &mask, 0);  //unblock the SIGCHLD signal in child
                     if(p==0){// the first command
-                        if (close(pipe_fd[0]) == -1) //close the read end
-                        {
-                            printf("close read_end fails: %s\n", strerror(errno));
-                            exit(0);
-                        }
-                        
-                        if (dup2(pipe_fd[1], STDOUT_FILENO) == -1) {
-                            //redirect stdout to the write end
-                            printf("dup2 fails: %s\n", strerror(errno));
-                            exit(0);
-                        }
-                        
-                        if (close(pipe_fd[1]) == -1) {
-                            //close the write end
-                            printf("close write_end fails: %s\n", strerror(errno));
-                            exit(0);
-                        }
-                        
+                        close(pipe_fd[p][0]);
+                        dup2(pipe_fd[p][1],STDOUT_FILENO);
+                        close(pipe_fd[p][1]);
                         printf("debug:%s\n", argv1[0]);
-                        
                         if(execvp(argv1[0], argv1) == -1) {
                             printf("%s: %s\n", argv1[0],strerror(errno));
                             exit(0);
                         }
                     }else if (p>0){
-                        if (close(pipe_fd[1]) == -1) {
-                            //close the write end
-                            printf("close write_end fails: %s\n", strerror(errno));
-                            exit(0);
-                        }
+                        close(pipe_fd[p-1][1]);
+                        close(pipe_fd[p][0]);
+                        dup2(pipe_fd[p-1][0],STDIN_FILENO);
+                        close(pipe_fd[p-1][0]);
+                        dup2(pipe_fd[p][1]);
+                        close(fd[p][1]);
                         
-                        if (dup2(pipe_fd[0], STDIN_FILENO) == -1) {
-                            //redirect read end to the stdin
-                            printf("dup2 fails: %s\n", strerror(errno));
-                            exit(0);
-                        }
-                        
-                        if (close(pipe_fd[0]) == -1) //close the read end
-                        {
-                            printf("close read_end fails: %s\n", strerror(errno));
-                            exit(0);
-                        }
                         if(execvp(argv1[0], argv1) == -1) {
                             printf("%s: %s\n", argv1[0],strerror(errno));
                             exit(0);
@@ -316,11 +291,11 @@ void eval(char *cmdline)
             setpgid(0, 0);                       //put the child in a new process group
                 sigprocmask(SIG_UNBLOCK, &mask, 0);  //unblock the SIGCHLD signal in child
                 printf("debug3:%s\n", argv1[0]);
-                close(pipe_fd[1]);
+                close(pipe_fd[p][1]);
                 printf("debug4:%s\n", argv1[0]);
-                dup2(pipe_fd[0],STDIN_FILENO);
+                dup2(pipe_fd[p-1][0],STDIN_FILENO);
 //                printf("debug:%s\n", argv1[0]);
-                close(pipe_fd[0]);
+                close(pipe_fd[p-1][0]);
                 printf("debug:%s\n", argv1[0]);
                 if(execvp(argv1[0], argv1) == -1) {
                     printf("%s: %s\n", argv1[0],strerror(errno));
@@ -341,10 +316,10 @@ void eval(char *cmdline)
                 else{
                     printf("[%d] (%d) %s", pid2jid(pid), pid, cmdline);
                 }
-                dup2(pipe_fd[0],STDOUT_FILENO);
-                close(pipe_fd[0]);
-                close(pipe_fd[1]);
-                dup2(STDOUT_FILENO,STDOUT_FILENO);
+//                dup2(pipe_fd[0],STDOUT_FILENO);
+//                close(pipe_fd[0]);
+//                close(pipe_fd[1]);
+//                dup2(STDOUT_FILENO,STDOUT_FILENO);
             }
 
         }else{

@@ -252,8 +252,8 @@ void eval(char *cmdline)
                         close(pipe_fd[p][0]);
                         dup2(pipe_fd[p-1][0],STDIN_FILENO);
                         close(pipe_fd[p-1][0]);
-                        dup2(pipe_fd[p][1]);
-                        close(fd[p][1]);
+                        dup2(pipe_fd[p][1],STDOUT_FILENO);
+                        close(pipe_fd[p][1]);
                         
                         if(execvp(argv1[0], argv1) == -1) {
                             printf("%s: %s\n", argv1[0],strerror(errno));
@@ -291,11 +291,11 @@ void eval(char *cmdline)
             setpgid(0, 0);                       //put the child in a new process group
                 sigprocmask(SIG_UNBLOCK, &mask, 0);  //unblock the SIGCHLD signal in child
                 printf("debug3:%s\n", argv1[0]);
-                close(pipe_fd[p][1]);
+                close(pipe_fd[pipe_no+1][1]);
                 printf("debug4:%s\n", argv1[0]);
-                dup2(pipe_fd[p-1][0],STDIN_FILENO);
+                dup2(pipe_fd[pipe_no][0],STDIN_FILENO);
 //                printf("debug:%s\n", argv1[0]);
-                close(pipe_fd[p-1][0]);
+                close(pipe_fd[pipe_no][0]);
                 printf("debug:%s\n", argv1[0]);
                 if(execvp(argv1[0], argv1) == -1) {
                     printf("%s: %s\n", argv1[0],strerror(errno));
